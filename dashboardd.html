@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>CSI AB Corp — Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --solar-gold: #F5A623; --solar-dark: #1A2332; --solar-mid: #243447;
+      --solar-line: #2E4060; --text-main: #E8EDF3; --text-muted: #7A93B0;
+      --card-bg: #1E2D40; --input-bg: #162233;
+      --success: #3DBE7A; --warning: #F5A623; --danger: #E05252; --info: #4A9EFF;
+    }
+    body { font-family: 'Inter', sans-serif; background: var(--solar-dark); color: var(--text-main); min-height: 100vh; }
+    header { background: var(--solar-mid); border-bottom: 2px solid var(--solar-gold); padding: 18px 32px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+    .logo { display: flex; align-items: center; gap: 12px; }
+    .logo-icon { width: 36px; height: 36px; background: var(--solar-gold); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+    .logo-text { font-size: 18px; font-weight: 700; }
+    .logo-sub { font-size: 11px; color: var(--text-muted); letter-spacing: 1.5px; text-transform: uppercase; }
+    nav { display: flex; gap: 4px; align-items: center; }
+    nav a { color: var(--text-muted); text-decoration: none; font-size: 14px; font-weight: 500; padding: 8px 16px; border-radius: 6px; transition: all .2s; }
+    nav a:hover, nav a.active { color: var(--solar-gold); background: rgba(245,166,35,.1); }
+    .nav-hist { background: rgba(224,82,82,.1); color: var(--danger); border: 1px solid rgba(224,82,82,.3); border-radius: 6px; font-size: 13px; font-weight: 600; padding: 7px 14px; cursor: pointer; transition: all .2s; }
+    .nav-hist:hover { background: rgba(224,82,82,.2); }
+    .page { padding: 36px 32px; }
+    .page-title { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+    .page-sub { font-size: 14px; color: var(--text-muted); margin-bottom: 28px; }
+    .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 32px; }
+    .kpi-card { background: var(--card-bg); border: 1px solid var(--solar-line); border-radius: 12px; padding: 20px 22px; position: relative; overflow: hidden; }
+    .kpi-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+    .kpi-card.total::before { background: var(--info); }
+    .kpi-card.abierto::before { background: var(--warning); }
+    .kpi-card.progreso::before { background: var(--info); }
+    .kpi-card.cerrado::before { background: var(--success); }
+    .kpi-label { font-size: 12px; color: var(--text-muted); font-weight: 600; letter-spacing: .8px; text-transform: uppercase; margin-bottom: 10px; }
+    .kpi-num { font-size: 36px; font-weight: 700; line-height: 1; }
+    .kpi-card.total .kpi-num { color: var(--info); }
+    .kpi-card.abierto .kpi-num { color: var(--warning); }
+    .kpi-card.progreso .kpi-num { color: var(--info); }
+    .kpi-card.cerrado .kpi-num { color: var(--success); }
+    .filters { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
+    .filters input, .filters select { background: var(--card-bg); border: 1px solid var(--solar-line); border-radius: 8px; color: var(--text-main); font-family: 'Inter', sans-serif; font-size: 13px; padding: 9px 14px; outline: none; transition: border-color .2s; }
+    .filters input:focus, .filters select:focus { border-color: var(--solar-gold); }
+    .filters input { flex: 1; min-width: 180px; }
+    .filters select option { background: var(--solar-dark); }
+    .table-wrap { background: var(--card-bg); border: 1px solid var(--solar-line); border-radius: 14px; overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; min-width: 1050px; }
+    thead th { background: var(--solar-mid); color: var(--text-muted); font-size: 11px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; padding: 14px 16px; text-align: left; white-space: nowrap; }
+    tbody tr { border-top: 1px solid var(--solar-line); transition: background .15s; }
+    tbody tr:hover { background: rgba(46,64,96,.4); }
+    td { padding: 11px 16px; font-size: 13px; vertical-align: middle; }
+    .badge { display: inline-block; border-radius: 20px; font-size: 11px; font-weight: 700; padding: 3px 10px; }
+    .badge-abierto { background: rgba(245,166,35,.15); color: var(--warning); }
+    .badge-progreso { background: rgba(74,158,255,.15); color: var(--info); }
+    .badge-cerrado { background: rgba(61,190,122,.15); color: var(--success); }
+    .badge-baja { background: rgba(61,190,122,.12); color: #3DBE7A; }
+    .badge-media { background: rgba(245,166,35,.12); color: var(--solar-gold); }
+    .badge-alta { background: rgba(224,82,82,.12); color: var(--danger); }
+    .dias-badge { font-weight: 700; font-size: 13px; }
+    .dias-ok { color: var(--success); } .dias-warn { color: var(--warning); } .dias-bad { color: var(--danger); }
+    /* Inline selects / inputs */
+    .inline-sel, .inline-date {
+      background: var(--input-bg); border: 1px solid var(--solar-line); border-radius: 6px;
+      color: var(--text-main); font-family: 'Inter', sans-serif; font-size: 12px;
+      padding: 4px 8px; outline: none; cursor: pointer; transition: border-color .2s;
+    }
+    .inline-sel { max-width: 130px; }
+    .inline-date { max-width: 140px; color-scheme: dark; }
+    .inline-sel:focus, .inline-date:focus { border-color: var(--solar-gold); }
+    .inline-sel option { background: var(--solar-dark); }
+    .action-btn { background: none; border: 1px solid var(--solar-line); border-radius: 6px; color: var(--text-muted); cursor: pointer; font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 600; padding: 5px 10px; margin-right: 4px; margin-bottom: 2px; transition: all .15s; }
+    .action-btn:hover { border-color: var(--solar-gold); color: var(--solar-gold); }
+    .action-btn.del:hover { border-color: var(--danger); color: var(--danger); }
+    .empty { text-align: center; padding: 60px 20px; color: var(--text-muted); }
+    .empty .icon { font-size: 48px; margin-bottom: 14px; }
+    .empty p { font-size: 15px; }
+    .empty a { color: var(--solar-gold); text-decoration: none; font-weight: 600; }
+    .loading { text-align: center; padding: 60px; color: var(--text-muted); font-size: 15px; }
+
+    /* ── MODAL ── */
+    .modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.65); z-index: 200; align-items: center; justify-content: center; padding: 20px; }
+    .modal-backdrop.open { display: flex; }
+    .modal { background: var(--card-bg); border: 1px solid var(--solar-line); border-radius: 16px; padding: 32px; width: 100%; max-width: 560px; max-height: 90vh; overflow-y: auto; }
+    .modal h2 { font-size: 18px; font-weight: 700; margin-bottom: 20px; }
+    .modal-row { display: grid; grid-template-columns: 150px 1fr; gap: 8px 16px; align-items: start; margin-bottom: 10px; }
+    .modal-key { font-size: 12px; color: var(--text-muted); font-weight: 600; letter-spacing: .5px; text-transform: uppercase; padding-top: 3px; }
+    .modal-val { font-size: 14px; }
+    .modal-section { margin: 18px 0 10px; border-top: 1px solid var(--solar-line); padding-top: 16px; }
+    .modal-section-title { font-size: 12px; color: var(--text-muted); font-weight: 700; letter-spacing: .8px; text-transform: uppercase; margin-bottom: 10px; }
+    .modal-textarea { width: 100%; background: var(--input-bg); border: 1px solid var(--solar-line); border-radius: 8px; color: var(--text-main); font-family: 'Inter', sans-serif; font-size: 13px; padding: 10px 12px; resize: vertical; min-height: 80px; outline: none; transition: border-color .2s; }
+    .modal-textarea:focus { border-color: var(--solar-gold); }
+    .modal-date-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+    .modal-date-label { font-size: 12px; color: var(--text-muted); font-weight: 600; letter-spacing: .5px; text-transform: uppercase; margin-bottom: 6px; }
+    .modal-date-input { width: 100%; background: var(--input-bg); border: 1px solid var(--solar-line); border-radius: 8px; color: var(--text-main); font-family: 'Inter', sans-serif; font-size: 13px; padding: 9px 12px; outline: none; color-scheme: dark; transition: border-color .2s; }
+    .modal-date-input:focus { border-color: var(--solar-gold); }
+    .modal-select { width: 100%; background: var(--input-bg); border: 1px solid var(--solar-line); border-radius: 8px; color: var(--text-main); font-family: 'Inter', sans-serif; font-size: 13px; padding: 9px 12px; outline: none; }
+    .modal-select option { background: var(--solar-dark); }
+    .modal-actions { display: flex; gap: 10px; margin-top: 24px; flex-wrap: wrap; }
+    .modal-btn { border-radius: 8px; cursor: pointer; font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 700; padding: 10px 20px; border: none; transition: opacity .2s; }
+    .modal-btn:hover { opacity: .85; }
+    .modal-btn.primary { background: var(--solar-gold); color: var(--solar-dark); }
+    .modal-btn.secondary { background: var(--solar-mid); color: var(--text-main); border: 1px solid var(--solar-line); }
+
+    /* ── HISTORIAL ── */
+    .hist-badge { background: rgba(224,82,82,.12); color: var(--danger); border-radius: 20px; font-size: 11px; font-weight: 700; padding: 3px 10px; }
+    .restore-btn { background: none; border: 1px solid var(--success); border-radius: 6px; color: var(--success); cursor: pointer; font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 600; padding: 5px 10px; transition: all .15s; }
+    .restore-btn:hover { background: rgba(61,190,122,.1); }
+
+    .toast { position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--success); color: #fff; border-radius: 10px; padding: 14px 24px; font-weight: 600; font-size: 14px; opacity: 0; transition: opacity .3s, transform .3s; pointer-events: none; z-index: 999; }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    @media (max-width: 768px) { .page { padding: 24px 16px; } .kpi-grid { grid-template-columns: 1fr 1fr; } }
+  </style>
+</head>
+<body>
+<header>
+  <div class="logo">
+    <div class="logo-icon">☀️</div>
+    <div>
+      <div class="logo-text">CSI AB Corp</div>
+      <div class="logo-sub">Gestión de Incidencias</div>
+    </div>
+  </div>
+  <nav>
+    <a href="index.html">Nuevo Reporte</a>
+    <a href="dashboard.html" class="active">Dashboard</a>
+    <button class="nav-hist" onclick="abrirHistorial()">🗑 Historial eliminados</button>
+  </nav>
+</header>
+
+<div class="page">
+  <div class="page-title">Dashboard de Incidencias</div>
+  <div class="page-sub" id="last-update">Cargando datos…</div>
+
+  <div class="kpi-grid">
+    <div class="kpi-card total"><div class="kpi-label">Total reportes</div><div class="kpi-num" id="kpi-total">—</div></div>
+    <div class="kpi-card abierto"><div class="kpi-label">Abiertos</div><div class="kpi-num" id="kpi-abierto">—</div></div>
+    <div class="kpi-card progreso"><div class="kpi-label">En progreso</div><div class="kpi-num" id="kpi-progreso">—</div></div>
+    <div class="kpi-card cerrado"><div class="kpi-label">Cerrados</div><div class="kpi-num" id="kpi-cerrado">—</div></div>
+  </div>
+
+  <div class="filters">
+    <input type="text" id="buscar" placeholder="🔍  Buscar cliente, ID o tipo…" oninput="renderTabla()"/>
+    <select id="filtro-estado" onchange="renderTabla()">
+      <option value="">Todos los estados</option>
+      <option>Abierto</option><option>En progreso</option><option>Cerrado</option>
+    </select>
+    <select id="filtro-prioridad" onchange="renderTabla()">
+      <option value="">Todas las prioridades</option>
+      <option>Baja</option><option>Media</option><option>Alta</option>
+    </select>
+    <select id="filtro-ingeniero" onchange="renderTabla()">
+      <option value="">Todos los ingenieros</option>
+      <option>SAUL</option><option>EDEL</option><option>AMADO</option>
+      <option>CECILIA</option><option>ERICK</option><option>PAUL</option><option>MILCIADES</option>
+    </select>
+  </div>
+
+  <div class="table-wrap">
+    <div class="loading" id="loading">⏳ Cargando tickets…</div>
+    <table id="tabla" style="display:none">
+      <thead>
+        <tr>
+          <th>ID</th><th>Cliente</th><th>Tipo</th><th>Prioridad</th><th>Fuente</th>
+          <th>Ingeniero</th><th>Estado</th><th>Fecha reporte</th>
+          <th>Inicio trabajo</th><th>Fecha solución</th><th>Días</th><th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody id="tabla-body"></tbody>
+    </table>
+    <div class="empty" id="empty-state" style="display:none;">
+      <div class="icon">📋</div>
+      <p>No hay reportes aún.<br/><a href="index.html">Crear el primer reporte →</a></p>
+    </div>
+  </div>
+</div>
+
+<!-- Modal editar ticket -->
+<div class="modal-backdrop" id="modal-editar" onclick="closeModalEditar(event)">
+  <div class="modal">
+    <h2 id="modal-titulo"></h2>
+
+    <div class="modal-row"><div class="modal-key">Cliente</div><div class="modal-val" id="md-cliente"></div></div>
+    <div class="modal-row"><div class="modal-key">Tipo</div><div class="modal-val" id="md-tipo"></div></div>
+    <div class="modal-row"><div class="modal-key">Fuente</div><div class="modal-val" id="md-fuente"></div></div>
+    <div class="modal-row"><div class="modal-key">Prioridad</div><div class="modal-val" id="md-prioridad"></div></div>
+    <div class="modal-row"><div class="modal-key">Descripción</div><div class="modal-val" id="md-descripcion" style="white-space:pre-wrap;color:var(--text-muted);font-size:13px;"></div></div>
+
+    <div class="modal-section">
+      <div class="modal-section-title">Editar campos</div>
+
+      <div class="modal-row" style="margin-bottom:14px">
+        <div class="modal-key">Ingeniero</div>
+        <select class="modal-select" id="md-ingeniero">
+          <option value="">— Sin asignar —</option>
+          <option>SAUL</option><option>EDEL</option><option>AMADO</option>
+          <option>CECILIA</option><option>ERICK</option><option>PAUL</option><option>MILCIADES</option>
+        </select>
+      </div>
+
+      <div class="modal-row" style="margin-bottom:14px">
+        <div class="modal-key">Estado</div>
+        <select class="modal-select" id="md-estado">
+          <option>Abierto</option>
+          <option>En progreso</option>
+          <option>Cerrado</option>
+        </select>
+      </div>
+
+      <div class="modal-date-row">
+        <div>
+          <div class="modal-date-label">Fecha inicio trabajo</div>
+          <input type="date" class="modal-date-input" id="md-fecha-inicio"/>
+        </div>
+        <div>
+          <div class="modal-date-label">Fecha solución</div>
+          <input type="date" class="modal-date-input" id="md-fecha-solucion"/>
+        </div>
+      </div>
+
+      <div class="modal-date-label" style="margin-bottom:6px">Comentarios / Actualizaciones</div>
+      <textarea class="modal-textarea" id="md-comentarios" placeholder="Escribe aquí el progreso, notas o actualizaciones del ingeniero…"></textarea>
+    </div>
+
+    <div class="modal-actions">
+      <button class="modal-btn primary" onclick="guardarCambios()">💾 Guardar cambios</button>
+      <button class="modal-btn secondary" onclick="closeModalEditar()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal historial eliminados -->
+<div class="modal-backdrop" id="modal-historial" onclick="closeModalHistorial(event)">
+  <div class="modal" style="max-width:700px">
+    <h2>🗑 Historial de tickets eliminados</h2>
+    <div id="hist-contenido"></div>
+    <div class="modal-actions">
+      <button class="modal-btn secondary" onclick="closeModalHistorial()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getDatabase, ref, onValue, update, remove, push, get } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyDkrdNWC_GJnawDnyb31Y0Y18xMWcC0Gyk",
+    authDomain: "csi-abcorp.firebaseapp.com",
+    databaseURL: "https://csi-abcorp-default-rtdb.firebaseio.com",
+    projectId: "csi-abcorp",
+    storageBucket: "csi-abcorp.firebasestorage.app",
+    messagingSenderId: "179973833087",
+    appId: "1:179973833087:web:7b53167728abdf4af79a4a"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db  = getDatabase(app);
+
+  let ticketsMap  = {};
+  let eliminadosMap = {};
+  let editKey = null;
+
+  // ── Escuchar tickets activos ──
+  onValue(ref(db, 'tickets'), snap => {
+    ticketsMap = {};
+    if (snap.exists()) snap.forEach(c => { ticketsMap[c.key] = { _key: c.key, ...c.val() }; });
+    updateKPIs(); renderTabla();
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('tabla').style.display = 'table';
+    document.getElementById('last-update').textContent = 'Última actualización: ' + new Date().toLocaleString('es-MX');
+  });
+
+  // ── Escuchar historial eliminados ──
+  onValue(ref(db, 'eliminados'), snap => {
+    eliminadosMap = {};
+    if (snap.exists()) snap.forEach(c => { eliminadosMap[c.key] = { _key: c.key, ...c.val() }; });
+  });
+
+  function tickets() { return Object.values(ticketsMap).sort((a,b) => new Date(b.fechaReporte) - new Date(a.fechaReporte)); }
+
+  function updateKPIs() {
+    const list = tickets();
+    document.getElementById('kpi-total').textContent    = list.length;
+    document.getElementById('kpi-abierto').textContent  = list.filter(t => t.estado === 'Abierto').length;
+    document.getElementById('kpi-progreso').textContent = list.filter(t => t.estado === 'En progreso').length;
+    document.getElementById('kpi-cerrado').textContent  = list.filter(t => t.estado === 'Cerrado').length;
+  }
+
+  function fmtDate(iso) {
+    if (!iso) return '—';
+    // Si es formato yyyy-mm-dd (de input date)
+    if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) {
+      const [y,m,d] = iso.split('-');
+      return d + '/' + m + '/' + y;
+    }
+    return new Date(iso).toLocaleDateString('es-MX', { day:'2-digit', month:'short', year:'numeric' });
+  }
+
+  function toDateInput(iso) {
+    if (!iso) return '';
+    if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso;
+    const d = new Date(iso);
+    if (isNaN(d)) return '';
+    return d.toISOString().slice(0,10);
+  }
+
+  function calcDias(t) {
+    if (!t.fechaReporte) return null;
+    const start = new Date(t.fechaReporte);
+    const end   = t.fechaSolucion ? new Date(t.fechaSolucion) : new Date();
+    return Math.max(0, Math.floor((end - start) / 86400000));
+  }
+
+  function diasClass(d, cerrado) {
+    if (!cerrado) return d > 7 ? 'dias-bad' : d > 3 ? 'dias-warn' : 'dias-ok';
+    return d <= 3 ? 'dias-ok' : d <= 7 ? 'dias-warn' : 'dias-bad';
+  }
+
+  // ── Render tabla ──
+  window.renderTabla = function() {
+    const buscar    = document.getElementById('buscar').value.toLowerCase();
+    const estado    = document.getElementById('filtro-estado').value;
+    const prioridad = document.getElementById('filtro-prioridad').value;
+    const ingeniero = document.getElementById('filtro-ingeniero').value;
+
+    let lista = tickets().filter(t => {
+      const txt = ((t.id||'')+(t.cliente||'')+(t.tipo||'')+(t.descripcion||'')).toLowerCase();
+      return (!buscar    || txt.includes(buscar))
+          && (!estado    || t.estado === estado)
+          && (!prioridad || t.prioridad === prioridad)
+          && (!ingeniero || t.ingeniero === ingeniero);
+    });
+
+    const tbody = document.getElementById('tabla-body');
+    const empty = document.getElementById('empty-state');
+    if (lista.length === 0) { tbody.innerHTML = ''; empty.style.display = 'block'; return; }
+    empty.style.display = 'none';
+
+    const pBadge = { 'Baja':'badge-baja','Media':'badge-media','Alta':'badge-alta' };
+    const eBadge = { 'Abierto':'badge-abierto','En progreso':'badge-progreso','Cerrado':'badge-cerrado' };
+
+    tbody.innerHTML = lista.map(t => {
+      const dias   = calcDias(t);
+      const dClass = dias !== null ? diasClass(dias, t.estado === 'Cerrado') : '';
+      return `<tr>
+        <td><strong style="color:var(--solar-gold)">${t.id}</strong></td>
+        <td>${t.cliente}</td>
+        <td style="max-width:120px;word-break:break-word;font-size:12px">${t.tipo}</td>
+        <td><span class="badge ${pBadge[t.prioridad]||''}">${t.prioridad}</span></td>
+        <td style="font-size:11px;color:var(--text-muted)">${t.fuente}</td>
+        <td style="font-size:12px">${t.ingeniero || '<span style="color:var(--danger);font-size:11px">Sin asignar</span>'}</td>
+        <td><span class="badge ${eBadge[t.estado]||'badge-abierto'}">${t.estado}</span></td>
+        <td style="font-size:12px">${fmtDate(t.fechaReporte)}</td>
+        <td style="font-size:12px">${fmtDate(t.fechaInicio)}</td>
+        <td style="font-size:12px">${fmtDate(t.fechaSolucion)}</td>
+        <td class="dias-badge ${dClass}">${dias !== null ? dias+(t.estado==='Cerrado'?' d':' d ⏳') : '—'}</td>
+        <td>
+          <button class="action-btn" onclick="abrirEditar('${t._key}')">✏️ Editar</button>
+          <button class="action-btn del" onclick="eliminar('${t._key}','${t.id}')">🗑</button>
+        </td>
+      </tr>`;
+    }).join('');
+  };
+
+  // ── Abrir modal editar ──
+  window.abrirEditar = function(key) {
+    const t = ticketsMap[key];
+    if (!t) return;
+    editKey = key;
+    document.getElementById('modal-titulo').textContent = t.id + ' — ' + t.cliente;
+    document.getElementById('md-cliente').textContent   = t.cliente;
+    document.getElementById('md-tipo').textContent      = t.tipo;
+    document.getElementById('md-fuente').textContent    = t.fuente;
+    document.getElementById('md-prioridad').textContent = t.prioridad;
+    document.getElementById('md-descripcion').textContent = t.descripcion || '—';
+    document.getElementById('md-ingeniero').value       = t.ingeniero || '';
+    document.getElementById('md-estado').value          = t.estado || 'Abierto';
+    document.getElementById('md-fecha-inicio').value    = toDateInput(t.fechaInicio);
+    document.getElementById('md-fecha-solucion').value  = toDateInput(t.fechaSolucion);
+    document.getElementById('md-comentarios').value     = t.comentarios || '';
+    document.getElementById('modal-editar').classList.add('open');
+  };
+
+  window.guardarCambios = async function() {
+    if (!editKey) return;
+    const ingeniero   = document.getElementById('md-ingeniero').value;
+    const estado      = document.getElementById('md-estado').value;
+    const fechaInicio = document.getElementById('md-fecha-inicio').value;
+    const fechaSol    = document.getElementById('md-fecha-solucion').value;
+    const comentarios = document.getElementById('md-comentarios').value.trim();
+
+    await update(ref(db, 'tickets/' + editKey), {
+      ingeniero,
+      estado,
+      fechaInicio:   fechaInicio || '',
+      fechaSolucion: fechaSol || '',
+      comentarios
+    });
+
+    closeModalEditar();
+    showToast('Ticket actualizado correctamente');
+  };
+
+  window.closeModalEditar = function(e) {
+    if (!e || e.target === document.getElementById('modal-editar'))
+      document.getElementById('modal-editar').classList.remove('open');
+  };
+
+  // ── Eliminar → mover a historial ──
+  window.eliminar = async function(key, id) {
+    if (!confirm('¿Eliminar el ticket ' + id + '?\nQuedará guardado en el historial de eliminados.')) return;
+    const t = ticketsMap[key];
+    if (!t) return;
+    // Guardar en historial
+    await push(ref(db, 'eliminados'), {
+      ...t,
+      fechaEliminado: new Date().toISOString()
+    });
+    // Eliminar de tickets activos
+    await remove(ref(db, 'tickets/' + key));
+    showToast(id + ' movido al historial');
+  };
+
+  // ── Historial eliminados ──
+  window.abrirHistorial = function() {
+    const lista = Object.values(eliminadosMap).sort((a,b) => new Date(b.fechaEliminado) - new Date(a.fechaEliminado));
+    const cont = document.getElementById('hist-contenido');
+
+    if (lista.length === 0) {
+      cont.innerHTML = '<div class="empty"><div class="icon">✅</div><p>No hay tickets eliminados.</p></div>';
+    } else {
+      cont.innerHTML = `
+        <table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:8px">
+          <thead>
+            <tr style="border-bottom:1px solid var(--solar-line)">
+              <th style="text-align:left;padding:8px;color:var(--text-muted);font-size:11px;text-transform:uppercase">ID</th>
+              <th style="text-align:left;padding:8px;color:var(--text-muted);font-size:11px;text-transform:uppercase">Cliente</th>
+              <th style="text-align:left;padding:8px;color:var(--text-muted);font-size:11px;text-transform:uppercase">Tipo</th>
+              <th style="text-align:left;padding:8px;color:var(--text-muted);font-size:11px;text-transform:uppercase">Estado</th>
+              <th style="text-align:left;padding:8px;color:var(--text-muted);font-size:11px;text-transform:uppercase">Eliminado</th>
+              <th style="padding:8px"></th>
+            </tr>
+          </thead>
+          <tbody>
+            ${lista.map(t => `
+              <tr style="border-top:1px solid var(--solar-line)">
+                <td style="padding:8px;color:var(--solar-gold);font-weight:700">${t.id}</td>
+                <td style="padding:8px">${t.cliente}</td>
+                <td style="padding:8px;color:var(--text-muted)">${t.tipo}</td>
+                <td style="padding:8px"><span class="hist-badge">${t.estado}</span></td>
+                <td style="padding:8px;color:var(--text-muted)">${fmtDate(t.fechaEliminado)}</td>
+                <td style="padding:8px"><button class="restore-btn" onclick="restaurar('${t._key}','${t.id}')">↩ Restaurar</button></td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>`;
+    }
+    document.getElementById('modal-historial').classList.add('open');
+  };
+
+  window.restaurar = async function(key, id) {
+    const t = eliminadosMap[key];
+    if (!t) return;
+    const { _key, fechaEliminado, ...datos } = t;
+    await push(ref(db, 'tickets'), datos);
+    await remove(ref(db, 'eliminados/' + key));
+    closeModalHistorial();
+    showToast(id + ' restaurado correctamente');
+  };
+
+  window.closeModalHistorial = function(e) {
+    if (!e || e.target === document.getElementById('modal-historial'))
+      document.getElementById('modal-historial').classList.remove('open');
+  };
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = '✓ ' + msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 3200);
+  }
+</script>
+</body>
+</html>
